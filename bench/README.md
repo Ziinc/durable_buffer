@@ -324,7 +324,7 @@ the defaults. Captured 2026-10-28 on a 10-core Apple M1 Max, two runs each:
 | build | appends/s | MB/s |
 |---|---|---|
 | writer frames entries (0.6.1) | 20,276 / 20,387 | 5,069 / 5,097 |
-| caller frames entries | 139,726 / 140,080 | 34,932 / 35,020 |
+| caller frames entries (0.6.2) | 139,726 / 140,080 | 34,932 / 35,020 |
 
 **The writer was the ceiling.** It copied and CRC'd every payload for every
 caller, so one partition could frame only as fast as one core. Now each
