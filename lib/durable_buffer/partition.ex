@@ -48,7 +48,8 @@ defmodule DurableBuffer.Partition do
   @spec append(GenServer.server(), iodata(), timeout()) ::
           {:ok, non_neg_integer()} | {:error, term()}
   def append(server, payload, timeout \\ :infinity) do
-    GenServer.call(server, {:append, payload}, timeout)
+    {entries, count, bytes} = encode_one(payload)
+    GenServer.call(server, {:append_entries, entries, count, bytes}, timeout)
   end
 
   @doc """
@@ -66,7 +67,8 @@ defmodule DurableBuffer.Partition do
   def append_batch(_server, [], _timeout), do: {:ok, []}
 
   def append_batch(server, payloads, timeout) do
-    GenServer.call(server, {:append_batch, payloads}, timeout)
+    {entries, count, bytes} = encode_many(payloads)
+    GenServer.call(server, {:append_batch_entries, entries, count, bytes}, timeout)
   end
 
   @doc """
@@ -74,7 +76,8 @@ defmodule DurableBuffer.Partition do
   """
   @spec append_async(GenServer.server(), iodata()) :: :ok
   def append_async(server, payload) do
-    GenServer.cast(server, {:append, payload})
+    {entries, count, bytes} = encode_one(payload)
+    GenServer.cast(server, {:append_entries, entries, count, bytes})
   end
 
   @doc """
@@ -157,12 +160,12 @@ defmodule DurableBuffer.Partition do
   end
 
   @impl GenServer
-  def handle_call({:append, payload}, from, state) do
-    {:noreply, enqueue(state, from, encode_one(payload), :offset)}
+  def handle_call({:append_entries, entries, count, bytes}, from, state) do
+    {:noreply, enqueue(state, from, {entries, count, bytes}, :offset)}
   end
 
-  def handle_call({:append_batch, payloads}, from, state) do
-    {:noreply, enqueue(state, from, encode_many(payloads), :range)}
+  def handle_call({:append_batch_entries, entries, count, bytes}, from, state) do
+    {:noreply, enqueue(state, from, {entries, count, bytes}, :range)}
   end
 
   def handle_call(:sync, from, %{pending: []} = state) do
@@ -201,8 +204,8 @@ defmodule DurableBuffer.Partition do
   end
 
   @impl GenServer
-  def handle_cast({:append, payload}, state) do
-    {:noreply, enqueue(state, nil, encode_one(payload), :offset)}
+  def handle_cast({:append_entries, entries, count, bytes}, state) do
+    {:noreply, enqueue(state, nil, {entries, count, bytes}, :offset)}
   end
 
   @impl GenServer
