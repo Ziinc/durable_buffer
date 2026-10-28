@@ -65,7 +65,7 @@ defmodule DurableBuffer.PartitionTest do
       request = await_request(pid)
 
       {framed, size} = DurableBuffer.WAL.encode("hello")
-      assert {:append_entries, entries, 1, ^size} = request
+      assert {:append, {entries, 1, ^size}} = request
       assert IO.iodata_to_binary(entries) == IO.iodata_to_binary(framed)
 
       :ok = :sys.resume(pid)
@@ -82,7 +82,7 @@ defmodule DurableBuffer.PartitionTest do
       {framed_a, size_a} = DurableBuffer.WAL.encode("a")
       {framed_b, size_b} = DurableBuffer.WAL.encode("bb")
       size = size_a + size_b
-      assert {:append_batch_entries, entries, 2, ^size} = request
+      assert {:append_batch, {entries, 2, ^size}} = request
       assert IO.iodata_to_binary(entries) == IO.iodata_to_binary([framed_a, framed_b])
 
       :ok = :sys.resume(pid)
@@ -229,11 +229,13 @@ defmodule DurableBuffer.PartitionTest do
   end
 
   defp await_request(pid) do
-    case Process.info(pid, :messages) do
-      {:messages, [{:"$gen_call", _from, request} | _]} ->
+    {:messages, messages} = Process.info(pid, :messages)
+
+    case Enum.find(messages, &match?({:"$gen_call", _from, _request}, &1)) do
+      {:"$gen_call", _from, request} ->
         request
 
-      {:messages, []} ->
+      nil ->
         Process.sleep(5)
         await_request(pid)
     end

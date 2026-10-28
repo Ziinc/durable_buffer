@@ -21,7 +21,7 @@ defmodule WriterFramingBench.NoopBackend do
 end
 
 callers = String.to_integer(System.get_env("CALLERS", "64"))
-appends_per_caller = String.to_integer(System.get_env("APPENDS", "200"))
+appends_per_caller = String.to_integer(System.get_env("APPENDS", "2000"))
 payload_kb = String.to_integer(System.get_env("PAYLOAD_KB", "256"))
 
 payload = for _ <- 1..payload_kb, do: :crypto.strong_rand_bytes(1024)
@@ -51,7 +51,8 @@ sampler =
     1..callers
     |> Task.async_stream(
       fn _ ->
-        for _ <- 1..appends_per_caller, do: {:ok, _} = DurableBuffer.Partition.append(writer, payload)
+        for _ <- 1..appends_per_caller,
+            do: {:ok, _} = DurableBuffer.Partition.append(writer, payload)
       end,
       max_concurrency: callers,
       timeout: :infinity
